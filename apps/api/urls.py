@@ -1,6 +1,6 @@
 
 from django.urls import path, include
-from .views import LoginView, SignupView, TransactionView, CategoryView, TargetView
+from .views import LoginView, SignupView, TransactionView, CategoryView, TargetView, ImportExportTransactionsView
 
 urlpatterns = [
     path('auth/login/', LoginView.as_view(), name='login'),
@@ -11,4 +11,5 @@ urlpatterns = [
     path('categories/<int:pk>/', CategoryView.as_view(), name='category-detail'),
     path('targets/', TargetView.as_view(), name='targets'),
     path('targets/<int:pk>/', TargetView.as_view(), name='target-detail'),
+    path('transactions/import-export/', ImportExportTransactionsView.as_view(), name='import-export-transactions'),
 ]

@@ -270,4 +270,74 @@ class TargetView(APIView):
             return Response(status=204)
         except Target.DoesNotExist:
             return Response({'error': 'Target not found'}, status=404)
+        
+
+class ImportExportTransactionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="Export transactions to CSV",
+        responses={200: "CSV file"}
+    )
+    def get(self, request):
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['amount', 'description', 'date', 'type', 'category'])
+        
+        transactions = Transaction.objects.filter(user=request.user)
+        for transaction in transactions:
+            writer.writerow([
+                transaction.amount,
+                transaction.description,
+                transaction.date,
+                transaction.type,
+                transaction.category.id if transaction.category else ''
+            ])
+            
+        return response
+
+    @swagger_auto_schema(
+        operation_description="Import transactions from CSV",
+        responses={201: "Transactions imported successfully", 400: "Invalid CSV format"}
+    )
+    def post(self, request):
+        import csv
+        import io
+        
+        if 'file' not in request.FILES:
+            return Response({'error': 'No file uploaded'}, status=400)
+            
+        csv_file = request.FILES['file']
+        if not csv_file.name.endswith('.csv'):
+            return Response({'error': 'File must be CSV format'}, status=400)
+            
+        try:
+            decoded_file = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string)
+            
+            for row in reader:
+                category = None
+                if row.get('category'):
+                    category, _ = Category.objects.get_or_create(name=row['category'])
+                    
+                Transaction.objects.create(
+                    user=request.user,
+                    amount=row['amount'],
+                    description=row.get('description', ''),
+                    type=row.get('type', 'buy'),
+                    category=category,
+                    date=row.get('date')
+                )
+                
+            return Response({'message': 'Transactions imported successfully'}, status=201)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
 
