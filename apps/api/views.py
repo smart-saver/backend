@@ -57,6 +57,12 @@ class LoginView(APIView):
             return response
         else:
             return Response({'error': 'User account is disabled'}, status=401)
+        
+class LogoutView(APIView):
+    def post(self, request):
+        response = Response({'message': 'Logged out successfully'}, status=200)
+        response.delete_cookie(AUTH_COOKIE_KEY)
+        return response
 
 class SignupView(APIView):
     @swagger_auto_schema(
