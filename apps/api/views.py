@@ -8,6 +8,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from apps.account.auth_backends import AUTH_COOKIE_KEY
 from drf_yasg.utils import swagger_auto_schema
+from django.http import JsonResponse
+from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.core.credentials import AzureKeyCredential
+import environ
+
+env = environ.Env()
 
 User = get_user_model()
 
@@ -372,5 +379,59 @@ class ImportExportTransactionsView(APIView):
             
         except Exception as e:
             return Response({'error': str(e)}, status=400)
+
+
+class ChatbotView(APIView):
+    def post(self, request):
+        user_message = request.data.get("message", "")
+        transactions = Transaction.objects.filter(user=request.user)
+        
+        if not user_message:
+            return JsonResponse({'error': 'Message is required'}, status=400)
+
+        # Initialize the Azure ChatCompletionsClient
+        client = ChatCompletionsClient(
+            endpoint="https://models.inference.ai.azure.com",
+            credential=AzureKeyCredential(""),
+        )
+
+        print(user_message)
+
+
+        user_transactions = [{"amount": t.amount, "description": t.description, "type": t.type, "category": t.category.name if t.category else None, "date": t.date} for t in transactions]
+
+        print(user_message + '\n\n' + str(user_transactions))
+
+        try:
+            # Prepare the response from the model
+            response = client.complete(
+                messages=[
+                    SystemMessage(content="""
+                        You are a financial assistant AI strictly tasked with analyzing user transactions. I will provide you with a list of transactions in the following format:
+                        
+                        ### INTRODUCTION
+                        Based on this input, calculate and provide the following analysis:
+                        1. Total Transactions: The total number of transactions.
+                        2. Total Amount: The sum of the amounts of all transactions.
+                        3. Transaction Types Breakdown: A count of transactions grouped by their type (e.g., "income", "expense").
+                        4.  Category Breakdown: A count of transactions grouped by category, excluding any null categories.
+                        
+                        ###RULES
+                        Only use the provided data to calculate and analyze.
+                    """),
+                    UserMessage(content=user_message + '\n\n' + str(user_transactions)),
+                ],
+                model="Llama-3.3-70B-Instruct",
+                temperature=0.8,
+                max_tokens=2048,
+                top_p=0.1
+            )
+
+            # Return the response content
+            return JsonResponse({'response': response.choices[0].message.content})
+
+        except Exception as e:
+            # Log the error for debugging
+            return JsonResponse({'error': str(e)}, status=400)
 
 

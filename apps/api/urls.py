@@ -1,6 +1,6 @@
 
 from django.urls import path, include
-from .views import LoginView, SignupView, TransactionView, CategoryView, TargetView, ImportExportTransactionsView, LogoutView, TransactionDateView
+from .views import LoginView, SignupView, TransactionView, CategoryView, TargetView, ImportExportTransactionsView, LogoutView, TransactionDateView, ChatbotView
 
 urlpatterns = [
     path('auth/login/', LoginView.as_view(), name='login'),
@@ -14,4 +14,6 @@ urlpatterns = [
     path('targets/', TargetView.as_view(), name='targets'),
     path('targets/<int:pk>/', TargetView.as_view(), name='target-detail'),
     path('transactions/import-export/', ImportExportTransactionsView.as_view(), name='import-export-transactions'),
+
+    path('chatbot/', ChatbotView.as_view(), name='chatbot'),
 ]
