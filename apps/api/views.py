@@ -164,6 +164,33 @@ class TransactionView(APIView):
             return Response({'error': 'Transaction not found'}, status=404)
         
 
+class TransactionDateView(APIView):
+    @swagger_auto_schema(
+        responses={200: TransactionSerializer(many=True)}
+    )
+    def get(self, request):
+        transactions = Transaction.objects.filter(user=request.user).order_by('date')
+        grouped_transactions = {}
+        
+        for transaction in transactions:
+            date_key = transaction.date.date()  # Assuming 'date' is a DateTimeField
+            if date_key not in grouped_transactions:
+                grouped_transactions[date_key] = []
+            grouped_transactions[date_key].append(transaction)
+
+        # Prepare a list of dictionaries for serialization
+        serialized_data = [
+            {
+                'date': date_key,
+                'transactions': TransactionSerializer(transactions, many=True).data,
+                'total_buy': sum(int(transaction.amount) for transaction in transactions if transaction.type == 'buy'),
+                'total_sell': sum(int(transaction.amount) for transaction in transactions if transaction.type == 'sell'),
+            }
+            for date_key, transactions in grouped_transactions.items()
+        ]
+
+        return Response(serialized_data)
+
 class CategoryView(APIView):
     permission_classes = [IsAuthenticated]
     
